@@ -4,7 +4,6 @@ import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/
 const firebaseConfig = {
   apiKey: "AIzaSyB1wNN07DtwpymwPIN4v-m-6y3LUCPxKmc",
   authDomain: "rugby-21a58.firebaseapp.com",
-  // URL modifiée selon la demande exacte de Firebase :
   databaseURL: "https://rugby-21a58-default-rtdb.firebaseio.com", 
   projectId: "rugby-21a58",
   storageBucket: "rugby-21a58.appspot.com",
