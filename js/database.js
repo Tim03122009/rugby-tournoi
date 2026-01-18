@@ -4,8 +4,7 @@ import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/
 const firebaseConfig = {
   apiKey: "AIzaSyB1wNN07DtwpymwPIN4v-m-6y3LUCPxKmc",
   authDomain: "rugby-21a58.firebaseapp.com",
-  // J'ai mis à jour le lien ci-dessous selon ton erreur console :
-  databaseURL: "https://rugby-21a58-default-rtdb.europe-west1.firebasedatabase.app/", 
+  databaseURL: "https://rugby-21a58-default-rtdb.firebaseio.com", 
   projectId: "rugby-21a58",
   storageBucket: "rugby-21a58.appspot.com",
   messagingSenderId: "535132438806",
