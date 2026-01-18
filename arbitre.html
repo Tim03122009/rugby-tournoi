@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arbitre</title>
+    <title>Chrono Arbitre</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header><h1>Espace Arbitre</h1></header>
+    <header><h1>Chronomètre Terrain</h1></header>
     <div id="appArbitre"></div>
 
     <script type="module">
@@ -16,7 +16,7 @@
         onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
             const matchs = snapshot.val();
             const container = document.getElementById('appArbitre');
-            if (!matchs) return container.innerHTML = "<p>Aucun match en cours.</p>";
+            if (!matchs) return container.innerHTML = "<p>Aucun match prévu.</p>";
 
             container.innerHTML = "";
             matchs.forEach((m, index) => {
@@ -24,24 +24,19 @@
                     const card = document.createElement('div');
                     card.className = "card";
                     card.innerHTML = `
-                        <h3>Terrain ${m.terrain} - Arb: ${m.arbitre}</h3>
-                        <div class="score-input">
-                            <b>${m.t1}</b> <input type="number" id="s1_${index}" value="${m.score1}">
-                            <span>vs</span>
-                            <input type="number" id="s2_${index}" value="${m.score2}"> <b>${m.t2}</b>
-                        </div>
-                        <button class="btn-main" onclick="window.saveScore(${index})">VALIDER LE SCORE</button>
+                        <h2>Terrain ${m.terrain} - Match ${m.id}</h2>
+                        <h1 style="color:var(--primary)">${m.t1} vs ${m.t2}</h1>
+                        <p>Arbitre : <b>${m.arbitre}</b> | Durée : <b>${m.duree}</b></p>
+                        <button class="btn-main" style="background:var(--success)" onclick="window.finMatch(${index})">MARQUER COMME TERMINÉ</button>
                     `;
                     container.appendChild(card);
                 }
             });
 
-            window.saveScore = (idx) => {
-                const updates = {};
-                updates[`tournoi/listeMatchs/${idx}/score1`] = parseInt(document.getElementById(`s1_${idx}`).value);
-                updates[`tournoi/listeMatchs/${idx}/score2`] = parseInt(document.getElementById(`s2_${idx}`).value);
-                updates[`tournoi/listeMatchs/${idx}/termine`] = true;
-                update(ref(db), updates).then(() => alert("Score enregistré !"));
+            window.finMatch = (idx) => {
+                if(confirm("Confirmer la fin du match ?")) {
+                    update(ref(db, `tournoi/listeMatchs/${idx}`), { termine: true });
+                }
             };
         });
     </script>
