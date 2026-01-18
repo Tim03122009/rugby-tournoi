@@ -13,19 +13,15 @@
         <input type="number" id="terrains" value="2">
         
         <label>Équipes (une par ligne)</label>
-        <textarea id="equipes" rows="5">Équipe A&#10;Équipe B&#10;Équipe C&#10;Équipe D</textarea>
+        <textarea id="equipes" rows="6">Équipe A&#10;Équipe B&#10;Équipe C&#10;Équipe D&#10;Équipe E</textarea>
 
         <label>Arbitres (un par ligne)</label>
         <textarea id="arbitres" rows="3">Marc&#10;Sophie</textarea>
 
-        <label>Format</label>
-        <select id="mode">
-            <option value="tous">Toutes les équipes se rencontrent</option>
-            <option value="poule">Matchs de Poule (par terrain)</option>
-        </select>
-        <label>Durée du match (ex: 10 min)</label>
+        <label>Durée du match</label>
         <input type="text" id="dureeMatch" value="10 min">
-        <button id="btnGenerer" class="btn-main">GÉNÉRER LE TOURNOI</button>
+
+        <button id="btnGenerer" class="btn-main">GÉNÉRER LE PLANNING</button>
     </div>
 
     <script type="module">
