@@ -1,24 +1,32 @@
 import { db, ref, set } from './database.js';
 
-window.genererTournoi = function() {
-    const nbTerrains = document.getElementById('terrains').value;
-    const equipes = document.getElementById('equipes').value.split('\n').filter(e => e.trim() !== "");
-    const arbitres = document.getElementById('arbitres').value.split('\n').filter(a => a.trim() !== "");
-    
-    // Logique simplifiée de génération
+export function genererTournoi() {
+    const nbTerrains = parseInt(document.getElementById('terrains').value);
+    const listeEq = document.getElementById('equipes').value.split('\n').filter(e => e.trim() !== "");
+    const listeArb = document.getElementById('arbitres').value.split('\n').filter(a => a.trim() !== "");
+
+    if (listeEq.length < 2) return alert("Besoin d'au moins 2 équipes !");
+
     let matchs = [];
-    for (let i = 0; i < equipes.length; i++) {
-        for (let j = i + 1; j < equipes.length; j++) {
-            matchs.push({ t1: equipes[i], t2: equipes[j], score1: 0, score2: 0, termine: false });
+    // Algorithme simple : tout le monde rencontre tout le monde
+    for (let i = 0; i < listeEq.length; i++) {
+        for (let j = i + 1; j < listeEq.length; j++) {
+            matchs.push({
+                id: Math.random().toString(36).substr(2, 9),
+                t1: listeEq[i],
+                t2: listeEq[j],
+                score1: 0,
+                score2: 0,
+                termine: false,
+                terrain: (matchs.length % nbTerrains) + 1,
+                arbitre: listeArb[matchs.length % listeArb.length] || "À définir"
+            });
         }
     }
 
-    // Envoi à la base de données
     set(ref(db, 'tournoi/'), {
-        config: { nbTerrains, matchesTotal: matchs.length },
+        config: { nbTerrains, lastUpdate: Date.now() },
         listeMatchs: matchs,
-        arbitres: arbitres
-    }).then(() => {
-        alert("Tournoi prêt ! Les arbitres peuvent se connecter.");
-    });
+        arbitres: listeArb
+    }).then(() => alert("✅ Tournoi généré et synchronisé !"));
 }
