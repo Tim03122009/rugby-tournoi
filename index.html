@@ -3,28 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Configuration Tournoi</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
-        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input, textarea, select { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: #e63946; color: white; border: none; padding: 15px; width: 100%; border-radius: 5px; cursor: pointer; font-weight: bold; }
-    </style>
+    <title>Admin - Rugby Tournoi</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <header><h1>Configuration du Tournoi</h1></header>
     <div class="card">
-        <h1>🏉 Configuration</h1>
         <label>Nombre de Terrains</label>
         <input type="number" id="terrains" value="2">
         
-        <label>Noms des Équipes (une par ligne)</label>
+        <label>Équipes (une par ligne)</label>
         <textarea id="equipes" rows="5">Équipe A&#10;Équipe B&#10;Équipe C&#10;Équipe D</textarea>
 
-        <label>Prénoms des Arbitres (un par ligne)</label>
-        <textarea id="arbitres" rows="3">Marc&#10;Sophie&#10;Jean</textarea>
-
-        <label>Temps de match (minutes)</label>
-        <input type="number" id="duree" value="7">
+        <label>Arbitres (un par ligne)</label>
+        <textarea id="arbitres" rows="3">Marc&#10;Sophie</textarea>
 
         <label>Format</label>
         <select id="mode">
@@ -32,14 +24,12 @@
             <option value="poule">Matchs de Poule (par terrain)</option>
         </select>
 
-        <button onclick="generer()">GÉNÉRER LE TOURNOI</button>
+        <button id="btnGenerer" class="btn-main">GÉNÉRER LE TOURNOI</button>
     </div>
 
-    <script>
-        function generer() {
-            alert("Tournoi généré ! Les données sont prêtes à être envoyées aux arbitres.");
-            // Ici on ajoutera le code pour calculer les matchs
-        }
+    <script type="module">
+        import { genererTournoi } from './js/algo.js';
+        document.getElementById('btnGenerer').addEventListener('click', genererTournoi);
     </script>
 </body>
 </html>
