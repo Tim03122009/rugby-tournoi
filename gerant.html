@@ -2,28 +2,35 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Vue Globale du Tournoi</title>
+    <title>Suivi Tournoi</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header><h1>Vue Globale du Tournoi</h1></header>
+    <header><h1>Vue Globale</h1></header>
     <div id="liste" class="card"></div>
+
     <script type="module">
         import { db, ref, onValue } from './js/database.js';
         onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
             const m = snapshot.val();
             const res = document.getElementById('liste');
-            if (!m) { res.innerHTML = "Attente du planning..."; return; }
-            
-            res.innerHTML = m.map(x => `
-                <div class="match-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; opacity: ${x.termine ? '0.5' : '1'}">
-                    <div style="flex: 1;"><b>Match ${x.id}</b></div>
-                    <div style="flex: 2; text-align: center;">${x.t1} vs ${x.t2}</div>
-                    <div style="flex: 2; text-align: right; color: #e63946; font-weight: bold;">
-                        Terrain ${x.terrain} | ${x.duree}
-                    </div>
-                </div>
-            `).join('');
+            if (!m) return res.innerHTML = "Aucun tournoi en cours.";
+
+            let html = "";
+            let tourActuel = 0;
+
+            m.forEach(x => {
+                if (x.tour !== tourActuel) {
+                    tourActuel = x.tour;
+                    html += `<div class="tour-header">TOUR ${tourActuel} ${x.exempte ? `<span class="repos"> - Repos: ${x.exempte}</span>` : ''}</div>`;
+                }
+                html += `
+                    <div class="match-item ${x.termine ? 'fini' : ''}">
+                        <span><b>T${x.terrain}</b> | ${x.t1} vs ${x.t2}</span>
+                        <span class="duree">${x.duree}</span>
+                    </div>`;
+            });
+            res.innerHTML = html;
         });
     </script>
 </body>
