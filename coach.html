@@ -2,55 +2,46 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Espace Coach</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header>
-        <h1>Mon Équipe</h1>
-    </header>
+    <header><h1>Mon Équipe</h1></header>
     <div class="card">
-        <label>Sélectionnez votre équipe :</label>
-        <select id="selectEquipe" onchange="filtrerMatchs()">
-            <option value="">-- Choisir --</option>
-        </select>
+        <select id="selectEquipe"><option value="">-- Choisir votre équipe --</option></select>
     </div>
-
-    <div id="mesMatchs" class="card">
-        <p>Sélectionnez une équipe pour voir les matchs.</p>
-    </div>
+    <div id="mesMatchs" class="card"></div>
 
     <script type="module">
         import { db, ref, onValue } from './js/database.js';
+        const select = document.getElementById('selectEquipe');
+        const display = document.getElementById('mesMatchs');
 
-        // Remplir la liste des équipes
         onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
             const matchs = snapshot.val();
             if (!matchs) return;
 
-            const equipes = new Set();
-            matchs.forEach(m => { equipes.add(m.t1); equipes.add(m.t2); });
-            
-            const select = document.getElementById('selectEquipe');
-            equipes.forEach(eq => {
-                const opt = document.createElement('option');
-                opt.value = eq; opt.text = eq;
-                select.appendChild(opt);
-            });
-
-            window.filtrerMatchs = () => {
-                const choix = select.value;
-                const display = document.getElementById('mesMatchs');
-                display.innerHTML = "";
-                
-                matchs.filter(m => m.t1 === choix || m.t2 === choix).forEach(m => {
-                    const d = document.createElement('div');
-                    d.className = "match-item";
-                    d.innerHTML = `<span>Vs ${m.t1 === choix ? m.t2 : m.t1}</span> <b>${m.score1}-${m.score2}</b>`;
-                    display.appendChild(d);
+            // Remplir le sélecteur une seule fois
+            if(select.options.length <= 1) {
+                const equipes = [...new Set(matchs.flatMap(m => [m.t1, m.t2]))];
+                equipes.forEach(eq => {
+                    let opt = new Option(eq, eq);
+                    select.add(opt);
                 });
+            }
+
+            const rafraichir = () => {
+                const choix = select.value;
+                display.innerHTML = matchs.filter(m => m.t1 === choix || m.t2 === choix).map(m => `
+                    <div class="match-item">
+                        <span>vs ${m.t1 === choix ? m.t2 : m.t1}</span>
+                        <b style="color:var(--primary)">Terrain ${m.terrain} (${m.duree})</b>
+                    </div>
+                `).join('');
             };
+
+            select.onchange = rafraichir;
+            if(select.value) rafraichir();
         });
     </script>
 </body>
