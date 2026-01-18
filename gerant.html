@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord - Gérant</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Vue Globale du Tournoi</h1>
+    </header>
+    <main id="listeMatchsGlobal" class="card">
+        <p>Chargement des matchs...</p>
+    </main>
+
+    <script type="module">
+        import { db, ref, onValue } from './js/database.js';
+
+        const container = document.getElementById('listeMatchsGlobal');
+
+        onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
+            const matchs = snapshot.val();
+            if (!matchs) {
+                container.innerHTML = "Aucun match généré pour le moment.";
+                return;
+            }
+            
+            container.innerHTML = "";
+            matchs.forEach((m, index) => {
+                const div = document.createElement('div');
+                div.className = "match-item";
+                div.innerHTML = `
+                    <span><strong>Match ${index + 1}</strong></span>
+                    <span>${m.t1} vs ${m.t2}</span>
+                    <span style="color:var(--accent); font-weight:bold;">${m.score1} - ${m.score2}</span>
+                `;
+                container.appendChild(div);
+            });
+        });
+    </script>
+</body>
+</html>
