@@ -3,24 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zone Arbitre</title>
+    <title>Arbitre</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="card">
-        <h2 id="terrainNom">Terrain ...</h2>
-        <div id="matchActuel">
-            <h1 id="equipesNoms">Chargement...</h1>
-            <div class="score-input">
-                <input type="number" id="s1" value="0"> - <input type="number" id="s2" value="0">
-            </div>
-            <button class="btn-main" onclick="validerMatch()">VALIDER LE SCORE</button>
-        </div>
-    </div>
+    <header><h1>Espace Arbitre</h1></header>
+    <div id="appArbitre"></div>
 
     <script type="module">
         import { db, ref, onValue, update } from './js/database.js';
-        // Le code ici affichera le match en temps réel
+        
+        onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
+            const matchs = snapshot.val();
+            const container = document.getElementById('appArbitre');
+            if (!matchs) return container.innerHTML = "<p>Aucun match en cours.</p>";
+
+            container.innerHTML = "";
+            matchs.forEach((m, index) => {
+                if (!m.termine) {
+                    const card = document.createElement('div');
+                    card.className = "card";
+                    card.innerHTML = `
+                        <h3>Terrain ${m.terrain} - Arb: ${m.arbitre}</h3>
+                        <div class="score-input">
+                            <b>${m.t1}</b> <input type="number" id="s1_${index}" value="${m.score1}">
+                            <span>vs</span>
+                            <input type="number" id="s2_${index}" value="${m.score2}"> <b>${m.t2}</b>
+                        </div>
+                        <button class="btn-main" onclick="window.saveScore(${index})">VALIDER LE SCORE</button>
+                    `;
+                    container.appendChild(card);
+                }
+            });
+
+            window.saveScore = (idx) => {
+                const updates = {};
+                updates[`tournoi/listeMatchs/${idx}/score1`] = parseInt(document.getElementById(`s1_${idx}`).value);
+                updates[`tournoi/listeMatchs/${idx}/score2`] = parseInt(document.getElementById(`s2_${idx}`).value);
+                updates[`tournoi/listeMatchs/${idx}/termine`] = true;
+                update(ref(db), updates).then(() => alert("Score enregistré !"));
+            };
+        });
     </script>
 </body>
 </html>
