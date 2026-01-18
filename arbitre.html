@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zone Arbitre</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="card">
+        <h2 id="terrainNom">Terrain ...</h2>
+        <div id="matchActuel">
+            <h1 id="equipesNoms">Chargement...</h1>
+            <div class="score-input">
+                <input type="number" id="s1" value="0"> - <input type="number" id="s2" value="0">
+            </div>
+            <button class="btn-main" onclick="validerMatch()">VALIDER LE SCORE</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, ref, onValue, update } from './js/database.js';
+        // Le code ici affichera le match en temps réel
+    </script>
+</body>
+</html>
