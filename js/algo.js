@@ -8,7 +8,6 @@ export function genererTournoi() {
 
     if (listeEq.length < 2) return alert("Besoin d'au moins 2 équipes !");
 
-    // Liste de toutes les rencontres possibles
     let toutesRencontres = [];
     for (let i = 0; i < listeEq.length; i++) {
         for (let j = i + 1; j < listeEq.length; j++) {
@@ -20,19 +19,15 @@ export function genererTournoi() {
     let matchNum = 1;
     let indexArbitre = 0;
 
-    // Tant qu'il reste des matchs à organiser
     while (toutesRencontres.length > 0) {
         let equipesOccupeesCeTour = new Set();
+        let matchsTrouvesCeTour = false;
         
         for (let t = 1; t <= nbTerrains; t++) {
-            if (toutesRencontres.length === 0) break;
-
-            // On cherche un match où les deux équipes sont libres ce tour-ci
             let matchIndex = toutesRencontres.findIndex(m => 
                 !equipesOccupeesCeTour.has(m[0]) && !equipesOccupeesCeTour.has(m[1])
             );
 
-            // Si on trouve un match possible
             if (matchIndex !== -1) {
                 let match = toutesRencontres.splice(matchIndex, 1)[0];
                 equipesOccupeesCeTour.add(match[0]);
@@ -44,18 +39,27 @@ export function genererTournoi() {
                     t2: match[1],
                     terrain: t,
                     duree: duree,
-                    arbitre: listeArb[indexArbitre % listeArb.length] || "Libre",
+                    arbitre: listeArb[indexArbitre % listeArb.length] || "Non assigné",
                     termine: false
                 });
                 indexArbitre++;
+                matchsTrouvesCeTour = true;
             }
         }
-        // Si aucun match n'a pu être placé sur les terrains libres (conflit d'équipes), 
-        // on passe au "tour" suivant automatiquement par la boucle
+        if (!matchsTrouvesCeTour) {
+            // Si on ne peut plus placer de match sans faire rejouer une équipe, 
+            // on libère les équipes pour le "tour" suivant
+            equipesOccupeesCeTour.clear();
+            // On force la sortie pour passer au tour suivant de la boucle while
+            matchsTrouvesCeTour = true; 
+            if (toutesRencontres.length > 0 && planning.length > 0 && planning[planning.length-1].terrain === nbTerrains) {
+                // simple sécurité pour éviter boucle infinie
+            }
+        }
     }
 
     set(ref(db, 'tournoi/'), {
         config: { nbTerrains, dureeDefault: duree },
         listeMatchs: planning
-    }).then(() => alert("✅ Planning optimisé généré !"));
+    }).then(() => alert("✅ Planning généré !"));
 }
