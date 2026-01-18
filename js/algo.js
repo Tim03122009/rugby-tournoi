@@ -3,63 +3,67 @@ import { db, ref, set } from './database.js';
 export function genererTournoi() {
     const nbTerrains = parseInt(document.getElementById('terrains').value);
     const duree = document.getElementById('dureeMatch').value;
-    const listeEq = document.getElementById('equipes').value.split('\n').filter(e => e.trim() !== "");
+    let equipes = document.getElementById('equipes').value.split('\n').filter(e => e.trim() !== "");
     const listeArb = document.getElementById('arbitres').value.split('\n').filter(a => a.trim() !== "");
 
-    if (listeEq.length < 2) return alert("Besoin d'au moins 2 équipes !");
+    if (equipes.length < 2) return alert("Besoin d'au moins 2 équipes !");
 
-    let toutesRencontres = [];
-    for (let i = 0; i < listeEq.length; i++) {
-        for (let j = i + 1; j < listeEq.length; j++) {
-            toutesRencontres.push([listeEq[i], listeEq[j]]);
-        }
+    // Si le nombre d'équipes est impair, on ajoute une équipe fictive "Repos"
+    let avecRepos = false;
+    if (equipes.length % 2 !== 0) {
+        equipes.push("REPOS");
+        avecRepos = true;
     }
 
+    const nbEquipes = equipes.length;
+    const nbTours = nbEquipes - 1;
+    const matchsParTour = nbEquipes / 2;
     let planning = [];
-    let matchNum = 1;
-    let indexArbitre = 0;
+    let matchGlobalId = 1;
+    let indexArb = 0;
 
-    while (toutesRencontres.length > 0) {
-        let equipesOccupeesCeTour = new Set();
-        let matchsTrouvesCeTour = false;
-        
-        for (let t = 1; t <= nbTerrains; t++) {
-            let matchIndex = toutesRencontres.findIndex(m => 
-                !equipesOccupeesCeTour.has(m[0]) && !equipesOccupeesCeTour.has(m[1])
-            );
+    // Algorithme de Berger (Rotation)
+    for (let tour = 0; tour < nbTours; tour++) {
+        let terrainActuel = 1;
+        let reposDuTour = "";
 
-            if (matchIndex !== -1) {
-                let match = toutesRencontres.splice(matchIndex, 1)[0];
-                equipesOccupeesCeTour.add(match[0]);
-                equipesOccupeesCeTour.add(match[1]);
+        for (let i = 0; i < matchsParTour; i++) {
+            let eq1 = equipes[i];
+            let eq2 = equipes[nbEquipes - 1 - i];
 
-                planning.push({
-                    id: matchNum++,
-                    t1: match[0],
-                    t2: match[1],
-                    terrain: t,
-                    duree: duree,
-                    arbitre: listeArb[indexArbitre % listeArb.length] || "Non assigné",
-                    termine: false
-                });
-                indexArbitre++;
-                matchsTrouvesCeTour = true;
+            // Si l'une des deux est l'équipe fictive, c'est un repos
+            if (eq1 === "REPOS" || eq2 === "REPOS") {
+                reposDuTour = (eq1 === "REPOS") ? eq2 : eq1;
+            } else {
+                // On ne remplit les terrains que si on a assez de place
+                if (terrainActuel <= nbTerrains) {
+                    planning.push({
+                        id: matchGlobalId++,
+                        tour: tour + 1,
+                        t1: eq1,
+                        t2: eq2,
+                        terrain: terrainActuel++,
+                        duree: duree,
+                        arbitre: listeArb[indexArb % listeArb.length] || "Libre",
+                        termine: false,
+                        equipeRepos: "" // Sera rempli après
+                    });
+                    indexArb++;
+                }
             }
         }
-        if (!matchsTrouvesCeTour) {
-            // Si on ne peut plus placer de match sans faire rejouer une équipe, 
-            // on libère les équipes pour le "tour" suivant
-            equipesOccupeesCeTour.clear();
-            // On force la sortie pour passer au tour suivant de la boucle while
-            matchsTrouvesCeTour = true; 
-            if (toutesRencontres.length > 0 && planning.length > 0 && planning[planning.length-1].terrain === nbTerrains) {
-                // simple sécurité pour éviter boucle infinie
-            }
-        }
+
+        // On marque l'équipe au repos pour tous les matchs de ce tour
+        planning.filter(m => m.tour === tour + 1).forEach(m => {
+            m.equipeRepos = reposDuTour;
+        });
+
+        // Rotation des équipes (on garde la première fixe)
+        equipes.splice(1, 0, equipes.pop());
     }
 
     set(ref(db, 'tournoi/'), {
         config: { nbTerrains, dureeDefault: duree },
         listeMatchs: planning
-    }).then(() => alert("✅ Planning généré !"));
+    }).then(() => alert("✅ Planning parfait généré !"));
 }
