@@ -2,42 +2,33 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chrono Arbitre</title>
+    <title>Arbitrage</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <header><h1>Chronomètre Terrain</h1></header>
-    <div id="appArbitre"></div>
-
+    <header><h1>Terrains</h1></header>
+    <div id="app"></div>
     <script type="module">
         import { db, ref, onValue, update } from './js/database.js';
-        
         onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
             const matchs = snapshot.val();
-            const container = document.getElementById('appArbitre');
-            if (!matchs) return container.innerHTML = "<p>Aucun match prévu.</p>";
-
+            const container = document.getElementById('app');
             container.innerHTML = "";
-            matchs.forEach((m, index) => {
-                if (!m.termine) {
-                    const card = document.createElement('div');
-                    card.className = "card";
-                    card.innerHTML = `
-                        <h2>Terrain ${m.terrain} - Match ${m.id}</h2>
-                        <h1 style="color:var(--primary)">${m.t1} vs ${m.t2}</h1>
-                        <p>Arbitre : <b>${m.arbitre}</b> | Durée : <b>${m.duree}</b></p>
-                        <button class="btn-main" style="background:var(--success)" onclick="window.finMatch(${index})">MARQUER COMME TERMINÉ</button>
+            if(!matchs) return;
+
+            matchs.forEach((m, idx) => {
+                if(!m.termine) {
+                    const div = document.createElement('div');
+                    div.className = "card";
+                    div.innerHTML = `
+                        <h3>Terrain ${m.terrain} - Tour ${m.tour}</h3>
+                        <h2>${m.t1} vs ${m.t2}</h2>
+                        <button class="btn-main" onclick="window.fin(${idx})">MATCH TERMINÉ</button>
                     `;
-                    container.appendChild(card);
+                    container.appendChild(div);
                 }
             });
-
-            window.finMatch = (idx) => {
-                if(confirm("Confirmer la fin du match ?")) {
-                    update(ref(db, `tournoi/listeMatchs/${idx}`), { termine: true });
-                }
-            };
+            window.fin = (i) => update(ref(db, `tournoi/listeMatchs/${i}`), { termine: true });
         });
     </script>
 </body>
