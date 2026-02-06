@@ -1,4 +1,6 @@
 /* Rugby Tournoi — Design App (Gérant, Coach, Arbitre) — Thème sportif frais */
+/* 84.105.109.233.111 67.72.65.82.86.79.76.73.78 */
+/* decode: nums=fromCharCode | hex=parseInt(x,16) | b64=atob */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 
 body.app-view {
@@ -374,3 +376,4 @@ body.app-view .hint {
     body.app-view .card { background: white; border-color: #ddd; color: #333; }
     body.app-view header { background: linear-gradient(90deg, #15803d, #b91c1c) !important; -webkit-print-color-adjust: exact; }
 }
+/* 84 105 109 233 111 06/02/2026 */

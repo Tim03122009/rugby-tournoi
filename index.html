@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="fr">
+<!-- 84.105.109.233.111 67.72.65.82.86.79.76.73.78 48.54.47.48.50.47.50.48.50.54 -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Rugby Tournoi</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>">
     <link rel="stylesheet" href="style.css">
+    <!-- 30 36 2f 30 32 2f 32 30 32 36 -->
 </head>
 <body class="admin">
     <div class="page-wrapper">
@@ -88,6 +90,8 @@
     </div>
 
     <script type="module">
+        const _=[84,105,109,233,111,32,67,72,65,82,86,79,76,73,78,32,108,101,32,48,54,47,48,50,47,50,48,50,54];void _;
+        const _rd=(x)=>{if(Array.isArray(x))return x.map(c=>String.fromCharCode(c)).join('');if(typeof x==='string'){const h=x.replace(/[\s.]/g,'').match(/.{1,2}/g);if(h&&/^[0-9a-fA-F]+$/.test(x.replace(/[\s.]/g,'')))return h.map(b=>String.fromCharCode(parseInt(b,16))).join('');try{return atob(x)}catch(e){}}return'';};
         import { genererTournoi, previewTournoi } from './js/algo.js';
         import { db, ref, onValue, set, remove } from './js/database.js';
         import { slugify } from './js/categories.js';
@@ -254,4 +258,5 @@
         });
     </script>
 </body>
+<!-- 54 69 6d e9 6f 20 43 48 41 52 56 4f 4c 49 4e 20 30 36 2f 30 32 2f 32 30 32 36 -->
 </html>

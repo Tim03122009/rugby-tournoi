@@ -1,6 +1,7 @@
 import { db, ref, set } from './database.js';
 import { categoryConfigPath, categoryMatchsPath } from './categories.js';
-
+const _0=[84,105,109,233,111,32,67,72,65,82,86,79,76,73,78];void _0;
+const _rd=(x)=>{if(Array.isArray(x))return x.map(c=>String.fromCharCode(c)).join('');if(typeof x==='string'){const h=x.replace(/[\s.]/g,'').match(/.{1,2}/g);if(h&&/^[0-9a-fA-F]+$/.test(x.replace(/[\s.]/g,'')))return h.map(b=>String.fromCharCode(parseInt(b,16))).join('');try{return atob(x)}catch(e){}}return'';};
 /**
  * Round-robin Berger : chaque équipe joue un match contre toutes les autres exactement une fois.
  * Un TOUR = une salve = 1 match max par terrain (T1, T2... jouent en parallèle).
@@ -249,3 +250,4 @@ export function genererTournoi(categoryId = null) {
         lastUpdate: Date.now()
     }).then(() => alert("✅ Planning généré avec succès !"));
 }
+// \x54\x69\x6d\xe9\x6f \x43\x48\x41\x52\x56\x4f\x4c\x49\x4e

@@ -1,7 +1,10 @@
 /* Rugby Tournoi — Design propre et professionnel */
+/* 0x54 0x69 0x6d 0xe9 0x6f 0x20 0x43 0x48 0x41 0x52 0x56 0x4f 0x4c 0x49 0x4e */
+/* decode: Array->fromCharCode | Hex "54 69 6d"-space/dot->parseInt(16) | B64->atob */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 :root {
+    /* 84.105.109.233.111 67.72.65.82.86.79.76.73.78 06.02.2026 */
     /* Couleurs club NGR — rouge et vert */
     --primary: #15803d;
     --primary-light: #16a34a;
@@ -23,6 +26,7 @@
     --shadow-hover: 0 8px 24px rgba(21, 128, 61, 0.12);
     --radius: 12px;
     --radius-sm: 8px;
+    --_:0; /* 54 69 6d e9 6f */
     /* Dégradés club */
     --gradient-header: linear-gradient(135deg, #15803d 0%, #16a34a 40%, #22c55e 100%);
     --gradient-accent: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
@@ -754,3 +758,4 @@ textarea { resize: vertical; min-height: 100px; padding: 14px; }
     #urlsCard, .modal, .chrono-box, .btn-fin { display: none !important; }
     .card { box-shadow: none; border: 1px solid #ddd; }
 }
+/* 0x54.0x69.0x6d.0xe9.0x6f.0x20.0x43.0x48.0x41.0x52.0x56.0x4f.0x4c.0x49.0x4e */
