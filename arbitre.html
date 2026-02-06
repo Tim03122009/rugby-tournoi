@@ -2,34 +2,177 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Arbitrage</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbitrage - Rugby Tournoi</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="app.css">
 </head>
-<body>
-    <header><h1>Terrains</h1></header>
-    <div id="app"></div>
-    <script type="module">
-        import { db, ref, onValue, update } from './js/database.js';
-        onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
-            const matchs = snapshot.val();
-            const container = document.getElementById('app');
-            container.innerHTML = "";
-            if(!matchs) return;
+<body class="app-view">
+    <div class="page-wrapper">
+    <header>
+        <h1>Arbitrage</h1>
+        <div class="app-topbar">
+            <select id="selectCategory" class="app-cat-select">
+                <option value="">-- Choisir une catégorie --</option>
+            </select>
+        </div>
+    </header>
 
-            matchs.forEach((m, idx) => {
-                if(!m.termine) {
-                    const div = document.createElement('div');
-                    div.className = "card";
-                    div.innerHTML = `
-                        <h3>Terrain ${m.terrain} - Tour ${m.tour}</h3>
-                        <h2>${m.t1} vs ${m.t2}</h2>
-                        <button class="btn-main" onclick="window.fin(${idx})">MATCH TERMINÉ</button>
-                    `;
-                    container.appendChild(div);
+    <div id="selectCatScreen" class="card empty-state">
+        <p>Choisissez une catégorie dans le menu ci-dessus pour accéder aux matchs.</p>
+    </div>
+
+    <div id="mainContent" style="display:none">
+    <div id="vueTerrains" class="card terrains-synthese" style="display:none">
+        <h3>État des terrains</h3>
+        <div id="terrainsGrid" class="terrains-grid"></div>
+    </div>
+
+    <div class="card">
+        <label>Mon terrain</label>
+        <select id="selectTerrain">
+            <option value="">-- Tous les terrains --</option>
+        </select>
+    </div>
+
+    <div id="app"></div>
+
+    <div id="loading" class="card loading-state">
+        <div class="spinner"></div>
+        <p>Chargement…</p>
+    </div>
+
+    <div id="emptyState" class="card empty-state" style="display:none">
+        <p>Aucun match en cours sur ce terrain.</p>
+    </div>
+    </div>
+    </div>
+
+    <script type="module">
+        import { db, ref, onValue } from './js/database.js';
+
+        const container = document.getElementById('app');
+        const emptyState = document.getElementById('emptyState');
+        const selectTerrain = document.getElementById('selectTerrain');
+        const vueTerrains = document.getElementById('vueTerrains');
+        const terrainsGrid = document.getElementById('terrainsGrid');
+        const loading = document.getElementById('loading');
+        const selectCat = document.getElementById('selectCategory');
+        const mainContent = document.getElementById('mainContent');
+        const selectCatScreen = document.getElementById('selectCatScreen');
+
+        function getCatId() {
+            const params = new URLSearchParams(location.search);
+            return params.get('cat') || sessionStorage.getItem('app_cat') || '';
+        }
+        function setCatId(id) {
+            sessionStorage.setItem('app_cat', id || '');
+        }
+
+        function afficherVueTerrains(matchs, nbTerrains) {
+            if (!nbTerrains || nbTerrains < 2) { vueTerrains.style.display = 'none'; return; }
+            vueTerrains.style.display = 'block';
+            let html = '';
+            for (let t = 1; t <= nbTerrains; t++) {
+                const enCours = matchs.filter(m => m.terrain === t && !m.termine);
+                const statut = enCours.length ? 'busy' : 'libre';
+                const info = enCours[0] ? `${enCours[0].t1} vs ${enCours[0].t2}` : 'Libre';
+                html += `<div class="terrain-badge ${statut}"><strong>T${t}</strong> ${info}</div>`;
+            }
+            terrainsGrid.innerHTML = html;
+        }
+
+        function afficherMatchs(matchs, nbTerrains) {
+            loading.style.display = 'none';
+            const terrainChoisi = selectTerrain.value ? parseInt(selectTerrain.value) : null;
+            const matchsEnCours = matchs.filter(m => !m.termine && (terrainChoisi === null || m.terrain === terrainChoisi));
+
+            if (nbTerrains && selectTerrain.options.length <= 1) {
+                selectTerrain.innerHTML = '<option value="">-- Tous les terrains --</option>';
+                for (let t = 1; t <= nbTerrains; t++) {
+                    selectTerrain.add(new Option(`Terrain ${t}`, t));
                 }
+            }
+
+            afficherVueTerrains(matchs, nbTerrains);
+
+            container.innerHTML = "";
+            emptyState.style.display = "none";
+
+            if (matchsEnCours.length === 0) {
+                emptyState.style.display = "block";
+                return;
+            }
+
+            matchsEnCours.forEach((m) => {
+                const div = document.createElement('div');
+                div.className = "card match-arbitre";
+                div.innerHTML = `
+                    <h2 class="vs">${m.t1} vs ${m.t2}</h2>
+                    <p class="match-arbitre-meta">Terrain ${m.terrain} · Tour ${m.tour} · ${m.duree}</p>
+                    ${m.exempte ? `<p class="repos-info">Équipe en repos ce tour : <strong>${m.exempte}</strong></p>` : ''}
+                `;
+                container.appendChild(div);
             });
-            window.fin = (i) => update(ref(db, `tournoi/listeMatchs/${i}`), { termine: true });
+        }
+
+        let lastData = null;
+        selectTerrain.addEventListener('change', () => {
+            if (lastData?.listeMatchs) {
+                afficherMatchs(lastData.listeMatchs, lastData.config?.nbTerrains || 4);
+            }
         });
+
+        onValue(ref(db, 'tournoi/categoryList'), (snapshot) => {
+            const cats = snapshot.val() || {};
+            selectCat.innerHTML = '<option value="">-- Choisir une catégorie --</option>';
+            Object.entries(cats).forEach(([id, name]) => selectCat.add(new Option(name, id)));
+            const saved = getCatId();
+            if (saved && cats[saved]) selectCat.value = saved;
+        });
+
+        selectCat.addEventListener('change', () => {
+            const id = selectCat.value || '';
+            setCatId(id);
+            if (id) {
+                selectCatScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+                loadTournoi(id);
+            } else {
+                selectCatScreen.style.display = 'block';
+                mainContent.style.display = 'none';
+            }
+        });
+
+        function loadTournoi(catId) {
+            loading.style.display = 'block';
+            const path = catId ? `tournoi/categories/${catId}` : 'tournoi';
+            onValue(ref(db, path), (snapshot) => {
+                const data = snapshot.val();
+                lastData = data;
+                if (!data?.listeMatchs) {
+                    loading.style.display = 'none';
+                    container.innerHTML = "";
+                    vueTerrains.style.display = 'none';
+                    emptyState.innerHTML = "<p>Aucun tournoi configuré. Générez d'abord le planning depuis l'admin.</p>";
+                    emptyState.style.display = "block";
+                    return;
+                }
+                afficherMatchs(data.listeMatchs, data.config?.nbTerrains || 4);
+            });
+        }
+
+        const initialCat = getCatId();
+        if (initialCat) {
+            selectCatScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+            selectCat.value = initialCat;
+            loadTournoi(initialCat);
+        } else {
+            selectCatScreen.style.display = 'block';
+            mainContent.style.display = 'none';
+        }
     </script>
 </body>
 </html>

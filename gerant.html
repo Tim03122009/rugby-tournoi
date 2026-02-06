@@ -2,36 +2,165 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Suivi Tournoi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Gérant - Rugby Tournoi</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="app.css">
 </head>
-<body>
-    <header><h1>Vue Globale</h1></header>
+<body class="app-view">
+    <div class="page-wrapper">
+    <header>
+        <h1>Vue globale (jury)</h1>
+        <div class="app-topbar">
+            <select id="selectCategory" class="app-cat-select">
+                <option value="">-- Choisir une catégorie --</option>
+            </select>
+        </div>
+    </header>
+
+    <div id="selectCatScreen" class="card empty-state">
+        <p>Choisissez une catégorie dans le menu ci-dessus pour accéder au planning.</p>
+    </div>
+
+    <div id="mainContent" style="display:none">
+    <div id="synthese" class="card synthese" style="display:none">
+        <div class="synthese-stats">
+            <div class="stat"><span class="stat-value" id="matchsTermines">0</span><span class="stat-label">Terminés</span></div>
+            <div class="stat"><span class="stat-value" id="matchsTotal">0</span><span class="stat-label">Total</span></div>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <button type="button" class="btn-print" onclick="window.print()">Imprimer le planning</button>
+    </div>
+
     <div id="liste" class="card"></div>
 
-    <script type="module">
-        import { db, ref, onValue } from './js/database.js';
-        onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
-            const m = snapshot.val();
-            const res = document.getElementById('liste');
-            if (!m) return res.innerHTML = "Aucun tournoi en cours.";
+    <div id="loading" class="card loading-state">
+        <div class="spinner"></div>
+        <p>Chargement du tournoi…</p>
+    </div>
 
-            let html = "";
+    <div id="emptyState" class="card empty-state" style="display:none">
+        <p>Aucun tournoi en cours. Générez le planning depuis l'admin.</p>
+    </div>
+    </div>
+    </div>
+
+    <script type="module">
+        import { db, ref, onValue, update } from './js/database.js';
+
+        const liste = document.getElementById('liste');
+        const emptyState = document.getElementById('emptyState');
+        const loading = document.getElementById('loading');
+        const synthese = document.getElementById('synthese');
+        const selectCat = document.getElementById('selectCategory');
+        const mainContent = document.getElementById('mainContent');
+        const selectCatScreen = document.getElementById('selectCatScreen');
+
+        function getCatId() {
+            const params = new URLSearchParams(location.search);
+            return params.get('cat') || sessionStorage.getItem('app_cat') || '';
+        }
+        function setCatId(id) {
+            sessionStorage.setItem('app_cat', id || '');
+        }
+
+        function validerMatch(idx) {
+            const catId = getCatId();
+            const path = catId ? `tournoi/categories/${catId}/listeMatchs/${idx}` : `tournoi/listeMatchs/${idx}`;
+            update(ref(db, path), { termine: true });
+        }
+
+        onValue(ref(db, 'tournoi/categoryList'), (snapshot) => {
+            const cats = snapshot.val() || {};
+            const sel = selectCat.value;
+            selectCat.innerHTML = '<option value="">-- Choisir une catégorie --</option>';
+            Object.entries(cats).forEach(([id, name]) => selectCat.add(new Option(name, id)));
+            const saved = getCatId();
+            if (saved && cats[saved]) selectCat.value = saved;
+            else if (sel && cats[sel]) selectCat.value = sel;
+        });
+
+        selectCat.addEventListener('change', () => {
+            const id = selectCat.value || '';
+            setCatId(id);
+            if (id) {
+                selectCatScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+                loadTournoi(id);
+            } else {
+                selectCatScreen.style.display = 'block';
+                mainContent.style.display = 'none';
+            }
+        });
+
+        function loadTournoi(catId) {
+            loading.style.display = 'block';
+            const path = catId ? `tournoi/categories/${catId}` : 'tournoi';
+            onValue(ref(db, path), (snapshot) => {
+                loading.style.display = 'none';
+                const data = snapshot.val();
+
+                if (!data?.listeMatchs) {
+                    liste.innerHTML = "";
+                    synthese.style.display = 'none';
+                    emptyState.style.display = "block";
+                    return;
+                }
+
+                const m = data.listeMatchs;
+            emptyState.style.display = "none";
+            synthese.style.display = "block";
+
+            const termines = m.filter(x => x.termine).length;
+            const total = m.length;
+            const pct = total ? Math.round((termines / total) * 100) : 0;
+            const equipes = [...new Set(m.flatMap(x => [x.t1, x.t2]).filter(e => e !== "REPOS_FICTIF"))];
+
+            document.getElementById('matchsTermines').textContent = termines;
+            document.getElementById('matchsTotal').textContent = total;
+            document.getElementById('progressFill').style.width = pct + '%';
+
+            const nbTours = Math.max(...m.map(x => x.tour), 0);
+            let html = `<h2>Planning des matchs</h2><p class="round-robin-info">${equipes.length} équipes = ${total} matchs en ${nbTours} tours — Chaque équipe joue contre toutes les autres. <strong>Chaque tour = 1 match par terrain max</strong> (T1, T2… en parallèle). Validez les matchs terminés ci-dessous.</p>`;
             let tourActuel = 0;
 
-            m.forEach(x => {
+            m.forEach((x, idx) => {
                 if (x.tour !== tourActuel) {
                     tourActuel = x.tour;
-                    html += `<div class="tour-header">TOUR ${tourActuel} ${x.exempte ? `<span class="repos"> - Repos: ${x.exempte}</span>` : ''}</div>`;
+                    const matchsTour = m.filter(mt => mt.tour === x.tour);
+                    const equipesQuiJouent = new Set(matchsTour.flatMap(mt => [mt.t1, mt.t2]).filter(e => e !== "REPOS_FICTIF"));
+                    const equipesEnRepos = equipes.filter(eq => !equipesQuiJouent.has(eq));
+                    html += `<div class="tour-header">TOUR ${tourActuel}`;
+                    if (x.exempte) html += `<span class="repos"> — Bye : <strong>${x.exempte}</strong></span>`;
+                    if (equipesEnRepos.length) html += `<span class="repos"> — En repos : <strong>${equipesEnRepos.join(', ')}</strong></span>`;
+                    html += '</div>';
                 }
+                const btnValider = !x.termine ? `<button type="button" class="btn-sm btn-valider" data-idx="${idx}">✓ Valider</button>` : '<span class="match-fini-badge">Terminé</span>';
                 html += `
                     <div class="match-item ${x.termine ? 'fini' : ''}">
                         <span><b>T${x.terrain}</b> | ${x.t1} vs ${x.t2}</span>
-                        <span class="duree">${x.duree}</span>
+                        <span class="match-item-right"><span class="duree">${x.duree}</span>${btnValider}</span>
                     </div>`;
             });
-            res.innerHTML = html;
-        });
+            liste.innerHTML = html;
+
+                liste.querySelectorAll('.btn-valider').forEach(btn => {
+                    btn.addEventListener('click', () => validerMatch(parseInt(btn.dataset.idx, 10)));
+                });
+            });
+        }
+
+        const initialCat = getCatId();
+        if (initialCat) {
+            selectCatScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+            selectCat.value = initialCat;
+            loadTournoi(initialCat);
+        } else {
+            selectCatScreen.style.display = 'block';
+            mainContent.style.display = 'none';
+        }
     </script>
 </body>
 </html>

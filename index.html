@@ -4,29 +4,240 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Rugby Tournoi</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>">
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="admin">
+    <div class="page-wrapper">
     <header><h1>Configuration du Tournoi</h1></header>
-    <div class="card">
-        <label>Nombre de Terrains</label>
-        <input type="number" id="terrains" value="2">
-        
-        <label>Équipes (une par ligne)</label>
-        <textarea id="equipes" rows="6">Équipe A&#10;Équipe B&#10;Équipe C&#10;Équipe D&#10;Équipe E</textarea>
 
-        <label>Arbitres (un par ligne)</label>
-        <textarea id="arbitres" rows="3">Marc&#10;Sophie</textarea>
+    <nav class="admin-tabs">
+        <div class="admin-tabs-list" id="tabsList"></div>
+        <div class="admin-tabs-actions">
+            <button type="button" class="btn-sm btn-add-cat" id="btnAddCat">+ Nouvelle catégorie</button>
+        </div>
+    </nav>
 
-        <label>Durée du match</label>
-        <input type="text" id="dureeMatch" value="10 min">
+    <div id="tabContent" class="admin-tab-content">
+        <div id="configCard" class="card">
+            <div class="card-toolbar">
+                <span>Templates rapides</span>
+                <button type="button" class="btn-sm" data-tpl="4">4 équipes</button>
+                <button type="button" class="btn-sm" data-tpl="6">6 équipes</button>
+                <button type="button" class="btn-sm" data-tpl="8">8 équipes</button>
+            </div>
 
-        <button id="btnGenerer" class="btn-main">GÉNÉRER LE PLANNING</button>
+            <label>Nombre de terrains</label>
+            <input type="number" id="terrains" value="2" min="1">
+
+            <label>Équipes (une par ligne)</label>
+            <textarea id="equipes" rows="6" placeholder="Équipe A&#10;Équipe B&#10;Équipe C&#10;Équipe D"></textarea>
+
+            <label>Arbitres (un par ligne)</label>
+            <textarea id="arbitres" rows="3" placeholder="Marc&#10;Sophie"></textarea>
+
+            <label>Durée du match</label>
+            <input type="text" id="dureeMatch" value="10 min" placeholder="ex: 10 min">
+
+            <div class="btn-group">
+                <button id="btnPreview" class="btn-secondary">Prévisualiser</button>
+                <button id="btnGenerer" class="btn-main">GÉNÉRER LE PLANNING</button>
+            </div>
+
+            <p class="hint">La régénération du planning remplace le tournoi en cours.</p>
+        </div>
+
+        <div id="urlsCard" class="card" style="display:none">
+            <h3>URLs à partager</h3>
+            <p class="hint">Copiez ces liens pour les gérants, coaches et arbitres.</p>
+            <div class="url-list">
+                <div class="url-row"><span>Gérant</span><code id="urlGerant"></code><button type="button" class="btn-copy" data-target="urlGerant">Copier</button></div>
+                <div class="url-row"><span>Coach</span><code id="urlCoach"></code><button type="button" class="btn-copy" data-target="urlCoach">Copier</button></div>
+                <div class="url-row"><span>Arbitre</span><code id="urlArbitre"></code><button type="button" class="btn-copy" data-target="urlArbitre">Copier</button></div>
+            </div>
+        </div>
+
+        <div id="noCategoryState" class="card empty-state" style="display:none">
+            <p>Aucune catégorie. Cliquez sur « + Nouvelle catégorie » pour commencer.</p>
+        </div>
+
+        <div class="admin-tab-actions" id="tabActions" style="display:none">
+            <button type="button" class="btn-sm btn-delete-cat" id="btnDeleteCat">Supprimer cette catégorie</button>
+        </div>
+    </div>
+
+    <div id="previewModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <h2>Prévisualisation</h2>
+            <div id="previewBody"></div>
+            <button type="button" class="btn-main" id="closePreview">Fermer</button>
+        </div>
+    </div>
+
+    <div id="addCatModal" class="modal" style="display:none">
+        <div class="modal-content">
+            <h2>Nouvelle catégorie</h2>
+            <label>Nom de la catégorie</label>
+            <input type="text" id="newCatName" placeholder="ex: U10, U12, Minimes…">
+            <div class="btn-group" style="margin-top:20px">
+                <button type="button" class="btn-secondary" id="cancelAddCat">Annuler</button>
+                <button type="button" class="btn-main" id="confirmAddCat">Créer</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script type="module">
-        import { genererTournoi } from './js/algo.js';
-        document.getElementById('btnGenerer').addEventListener('click', genererTournoi);
+        import { genererTournoi, previewTournoi } from './js/algo.js';
+        import { db, ref, onValue, set, remove } from './js/database.js';
+        import { slugify } from './js/categories.js';
+
+        const CATEGORY_LIST_REF = ref(db, 'tournoi/categoryList');
+        const tpls = {
+            4: { equipes: "Équipe A\nÉquipe B\nÉquipe C\nÉquipe D", terrains: 2 },
+            6: { equipes: "Équipe A\nÉquipe B\nÉquipe C\nÉquipe D\nÉquipe E\nÉquipe F", terrains: 2 },
+            8: { equipes: "Équipe A\nÉquipe B\nÉquipe C\nÉquipe D\nÉquipe E\nÉquipe F\nÉquipe G\nÉquipe H", terrains: 2 }
+        };
+
+        let categories = {};
+        let currentCatId = null;
+
+        function renderTabs() {
+            const list = document.getElementById('tabsList');
+            list.innerHTML = '';
+            Object.entries(categories).forEach(([id, name]) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'admin-tab' + (id === currentCatId ? ' active' : '');
+                btn.textContent = name;
+                btn.dataset.catId = id;
+                btn.addEventListener('click', () => switchTab(id));
+                list.appendChild(btn);
+            });
+            document.getElementById('noCategoryState').style.display = Object.keys(categories).length === 0 ? 'block' : 'none';
+            document.getElementById('configCard').style.display = Object.keys(categories).length === 0 ? 'none' : 'block';
+            document.getElementById('urlsCard').style.display = Object.keys(categories).length === 0 ? 'none' : 'block';
+            document.getElementById('tabActions').style.display = currentCatId ? 'block' : 'none';
+        }
+
+        function switchTab(catId) {
+            currentCatId = catId;
+            renderTabs();
+            loadConfig(catId);
+            updateUrls();
+        }
+
+        function loadConfig(catId) {
+            const path = catId ? `tournoi/categories/${catId}/config` : 'tournoi/config';
+            onValue(ref(db, path), (snapshot) => {
+                const c = snapshot.val();
+                if (c) {
+                    document.getElementById('terrains').value = c.nbTerrains || 2;
+                    document.getElementById('equipes').value = (c.equipes || []).join('\n');
+                    document.getElementById('arbitres').value = (c.arbitres || []).join('\n');
+                    document.getElementById('dureeMatch').value = c.dureeMatch || '10 min';
+                }
+            }, { onlyOnce: true });
+        }
+
+        function updateUrls() {
+            const base = location.origin + location.pathname.replace('index.html','');
+            const params = currentCatId ? '?cat=' + encodeURIComponent(currentCatId) : '';
+            document.getElementById('urlGerant').textContent = base + 'gerant.html' + params;
+            document.getElementById('urlCoach').textContent = base + 'coach.html' + params;
+            document.getElementById('urlArbitre').textContent = base + 'arbitre.html' + params;
+        }
+
+        onValue(CATEGORY_LIST_REF, (snapshot) => {
+            categories = snapshot.val() || {};
+            if (!currentCatId && Object.keys(categories).length > 0) {
+                currentCatId = Object.keys(categories)[0];
+            }
+            if (currentCatId && !categories[currentCatId]) {
+                currentCatId = Object.keys(categories)[0] || null;
+            }
+            renderTabs();
+            if (currentCatId) loadConfig(currentCatId);
+            updateUrls();
+        });
+
+        document.querySelectorAll('[data-tpl]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const t = tpls[btn.dataset.tpl];
+                document.getElementById('equipes').value = t.equipes;
+                document.getElementById('terrains').value = t.terrains;
+            });
+        });
+
+        document.getElementById('btnPreview').addEventListener('click', () => {
+            const planning = previewTournoi();
+            if (!planning) return alert("Besoin d'au moins 2 équipes !");
+            const nbEq = [...new Set(planning.flatMap(m => [m.t1, m.t2]).filter(e => e !== "REPOS_FICTIF"))].length;
+            const nbTours = Math.max(...planning.map(m => m.tour), 0);
+            let html = `<p class="round-robin-info">${nbEq} équipes = ${planning.length} matchs en ${nbTours} tours.</p>`;
+            let tourActuel = 0;
+            planning.forEach(x => {
+                if (x.tour !== tourActuel) {
+                    tourActuel = x.tour;
+                    html += `<div class="tour-header">TOUR ${tourActuel}</div>`;
+                }
+                html += `<div class="match-item"><span><b>T${x.terrain}</b> | ${x.t1} vs ${x.t2}</span><span class="duree">${x.duree}</span></div>`;
+            });
+            document.getElementById('previewBody').innerHTML = html;
+            document.getElementById('previewModal').style.display = 'flex';
+        });
+
+        document.getElementById('closePreview').addEventListener('click', () => document.getElementById('previewModal').style.display = 'none');
+        document.getElementById('previewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'previewModal') document.getElementById('previewModal').style.display = 'none';
+        });
+
+        document.getElementById('btnGenerer').addEventListener('click', () => {
+            if (!currentCatId) return alert('Sélectionnez une catégorie.');
+            genererTournoi(currentCatId);
+        });
+
+        document.getElementById('btnAddCat').addEventListener('click', () => {
+            document.getElementById('newCatName').value = '';
+            document.getElementById('addCatModal').style.display = 'flex';
+            document.getElementById('newCatName').focus();
+        });
+
+        document.getElementById('cancelAddCat').addEventListener('click', () => document.getElementById('addCatModal').style.display = 'none');
+        document.getElementById('addCatModal').addEventListener('click', (e) => {
+            if (e.target.id === 'addCatModal') document.getElementById('addCatModal').style.display = 'none';
+        });
+
+        document.getElementById('confirmAddCat').addEventListener('click', () => {
+            const name = document.getElementById('newCatName').value.trim();
+            if (!name) return alert('Entrez un nom.');
+            const id = slugify(name) || 'cat-' + Date.now();
+            set(ref(db, `tournoi/categoryList/${id}`), name).then(() => {
+                document.getElementById('addCatModal').style.display = 'none';
+                switchTab(id);
+            });
+        });
+
+        document.getElementById('btnDeleteCat').addEventListener('click', () => {
+            if (!currentCatId || !confirm('Supprimer la catégorie « ' + (categories[currentCatId] || '') + ' » ?')) return;
+            remove(ref(db, `tournoi/categoryList/${currentCatId}`)).then(() => {
+                remove(ref(db, `tournoi/categories/${currentCatId}`)).then(() => {
+                    currentCatId = Object.keys(categories).filter(k => k !== currentCatId)[0] || null;
+                    renderTabs();
+                    if (currentCatId) loadConfig(currentCatId);
+                });
+            });
+        });
+
+        document.querySelectorAll('.btn-copy').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const code = document.getElementById(btn.dataset.target);
+                navigator.clipboard.writeText(code?.textContent || '').then(() => {
+                    btn.textContent = '✓';
+                    setTimeout(() => btn.textContent = 'Copier', 1500);
+                });
+            });
+        });
     </script>
 </body>
 </html>

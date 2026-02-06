@@ -2,47 +2,211 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Espace Coach</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Espace Coach - Rugby Tournoi</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏉</text></svg>">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="app.css">
 </head>
-<body>
-    <header><h1>Mon Équipe</h1></header>
-    <div class="card">
-        <select id="selectEquipe"><option value="">-- Choisir votre équipe --</option></select>
+<body class="app-view">
+    <div class="page-wrapper">
+    <header>
+        <h1>Mon équipe</h1>
+        <div class="app-topbar">
+            <select id="selectCategory" class="app-cat-select">
+                <option value="">-- Choisir une catégorie --</option>
+            </select>
+        </div>
+    </header>
+
+    <div id="selectCatScreen" class="card empty-state">
+        <p>Choisissez une catégorie dans le menu ci-dessus pour accéder à vos matchs.</p>
     </div>
+
+    <div id="mainContent" style="display:none">
+    <div class="card">
+        <label>Choisir votre équipe</label>
+        <select id="selectEquipe">
+            <option value="">-- Choisir votre équipe --</option>
+        </select>
+    </div>
+
     <div id="mesMatchs" class="card"></div>
+
+    <div id="loading" class="card loading-state">
+        <div class="spinner"></div>
+        <p>Chargement…</p>
+    </div>
+
+    <div id="emptyState" class="card empty-state" style="display:none">
+        <p>Aucun tournoi en cours. Générez le planning depuis l'admin.</p>
+    </div>
+    </div>
+    </div>
+
+    <button type="button" class="btn-print-fab" onclick="window.print()" title="Imprimer">🖨️</button>
 
     <script type="module">
         import { db, ref, onValue } from './js/database.js';
+
         const select = document.getElementById('selectEquipe');
         const display = document.getElementById('mesMatchs');
+        const emptyState = document.getElementById('emptyState');
+        const loading = document.getElementById('loading');
+        const selectCat = document.getElementById('selectCategory');
+        const mainContent = document.getElementById('mainContent');
+        const selectCatScreen = document.getElementById('selectCatScreen');
 
-        onValue(ref(db, 'tournoi/listeMatchs'), (snapshot) => {
-            const matchs = snapshot.val();
-            if (!matchs) return;
+        function getCatId() {
+            const params = new URLSearchParams(location.search);
+            return params.get('cat') || sessionStorage.getItem('app_cat') || '';
+        }
+        function setCatId(id) {
+            sessionStorage.setItem('app_cat', id || '');
+        }
 
-            // Remplir le sélecteur une seule fois
-            if(select.options.length <= 1) {
-                const equipes = [...new Set(matchs.flatMap(m => [m.t1, m.t2]))];
-                equipes.forEach(eq => {
-                    let opt = new Option(eq, eq);
-                    select.add(opt);
-                });
-            }
-
-            const rafraichir = () => {
-                const choix = select.value;
-                display.innerHTML = matchs.filter(m => m.t1 === choix || m.t2 === choix).map(m => `
-                    <div class="match-item">
-                        <span>vs ${m.t1 === choix ? m.t2 : m.t1}</span>
-                        <b style="color:var(--primary)">Terrain ${m.terrain} (${m.duree})</b>
-                    </div>
-                `).join('');
-            };
-
-            select.onchange = rafraichir;
-            if(select.value) rafraichir();
+        onValue(ref(db, 'tournoi/categoryList'), (snapshot) => {
+            const cats = snapshot.val() || {};
+            selectCat.innerHTML = '<option value="">-- Choisir une catégorie --</option>';
+            Object.entries(cats).forEach(([id, name]) => selectCat.add(new Option(name, id)));
+            const saved = getCatId();
+            if (saved && cats[saved]) selectCat.value = saved;
         });
+
+        selectCat.addEventListener('change', () => {
+            const id = selectCat.value || '';
+            setCatId(id);
+            if (id) {
+                selectCatScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+                loadTournoi(id);
+            } else {
+                selectCatScreen.style.display = 'block';
+                mainContent.style.display = 'none';
+            }
+        });
+
+        function loadTournoi(catId) {
+            loading.style.display = 'block';
+            const path = catId ? `tournoi/categories/${catId}/listeMatchs` : 'tournoi/listeMatchs';
+            onValue(ref(db, path), (snapshot) => {
+                loading.style.display = 'none';
+                const matchs = snapshot.val();
+                if (!matchs) {
+                    display.innerHTML = "";
+                    emptyState.style.display = "block";
+                    return;
+                }
+                emptyState.style.display = "none";
+
+                const equipes = [...new Set(matchs.flatMap(m => [m.t1, m.t2]).filter(e => e !== "REPOS_FICTIF"))];
+                const currentTeams = [...select.options].slice(1).map(o => o.value);
+                if (equipes.length > 0 && (currentTeams.length !== equipes.length || equipes.some(e => !currentTeams.includes(e)))) {
+                    const sel = select.value;
+                    select.innerHTML = '<option value="">-- Choisir votre équipe --</option>';
+                    equipes.forEach(eq => select.add(new Option(eq, eq)));
+                    if (sel && equipes.includes(sel)) select.value = sel;
+                }
+
+                const rafraichir = () => {
+                    const choix = select.value;
+                    if (!choix) {
+                        display.innerHTML = "<p class='hint'>Sélectionnez une équipe pour voir ses matchs.</p>";
+                        return;
+                    }
+
+                    const mesMatchs = matchs.filter(m => m.t1 === choix || m.t2 === choix);
+                    const nbTours = Math.max(...matchs.map(m => m.tour), 0);
+
+                    const getEnRepos = (t) => {
+                        const matchsTour = matchs.filter(m => m.tour === t);
+                        const equipesQuiJouent = new Set(matchsTour.flatMap(m => [m.t1, m.t2]).filter(e => e !== "REPOS_FICTIF"));
+                        return equipes.filter(eq => !equipesQuiJouent.has(eq));
+                    };
+
+                    const premierTourNonFini = () => {
+                        for (let t = 1; t <= nbTours; t++) {
+                            const matchsTour = matchs.filter(m => m.tour === t);
+                            if (matchsTour.some(m => !m.termine)) return t;
+                        }
+                        return null;
+                    };
+                    const prochainTour = premierTourNonFini();
+
+                    const items = [];
+                    let prochainBloc = '';
+                    let foundNext = false;
+                    for (let tour = 1; tour <= nbTours; tour++) {
+                        const match = mesMatchs.find(m => m.tour === tour);
+                        const enRepos = getEnRepos(tour);
+                        const enReposStr = enRepos.length ? ` <span class="repos-inline">Autres équipes en repos : ${enRepos.join(', ')}</span>` : '';
+                        const isProchain = tour === prochainTour;
+                        const prochainLabel = isProchain ? '<span class="prochain-badge">À venir</span>' : '';
+                        if (match) {
+                            const adversaire = match.t1 === choix ? match.t2 : match.t1;
+                            if (!match.termine && !foundNext) foundNext = true;
+                            const html = `
+                                <div class="match-item coach-match ${match.termine ? 'fini' : ''} ${isProchain ? 'prochain-tour' : ''}">
+                                    <div class="match-item-header">
+                                        ${prochainLabel}
+                                        <span class="match-opponent">vs ${adversaire}</span>
+                                        <span class="match-detail"><b>Terrain ${match.terrain}</b> · Tour ${tour} · ${match.duree}</span>
+                                    </div>
+                                    ${enReposStr}
+                                </div>
+                            `;
+                            if (isProchain) prochainBloc = html;
+                            else items.push(html);
+                        } else {
+                            if (!foundNext) foundNext = true;
+                            const html = `
+                                <div class="match-item coach-match repos-item ${isProchain ? 'prochain-tour' : ''}">
+                                    <div class="match-item-header">
+                                        ${prochainLabel}
+                                        <span class="match-opponent">Repos</span>
+                                        <span class="match-detail"><b>Tour ${tour}</b> · Vous ne jouez pas</span>
+                                    </div>
+                                    ${enReposStr}
+                                </div>
+                            `;
+                            if (isProchain) prochainBloc = html;
+                            else items.push(html);
+                        }
+                    }
+
+                    if (items.length === 0 && !prochainBloc) {
+                        display.innerHTML = "<p>Aucun match pour cette équipe.</p>";
+                        return;
+                    }
+
+                    const toutTermine = mesMatchs.every(m => m.termine);
+                    const prochainSection = prochainBloc ? `
+                        <div class="prochain-match-bloc">
+                            <h3 class="prochain-match-title">Prochain rendez-vous</h3>
+                            ${prochainBloc}
+                        </div>
+                    ` : '';
+                    const resteTitle = toutTermine && !prochainBloc ? 'Votre planning' : 'Reste du planning';
+                    const resteSection = items.length || prochainBloc ? `<div class="reste-matchs"><h3>${resteTitle}</h3>${items.join('')}</div>` : '';
+                    const termineMsg = toutTermine ? '<p class="hint tournoi-termine">Bravo, tous vos matchs sont terminés !</p>' : '';
+                    display.innerHTML = prochainSection + resteSection + termineMsg;
+                };
+
+                select.onchange = rafraichir;
+                rafraichir();
+            });
+        }
+
+        const initialCat = getCatId();
+        if (initialCat) {
+            selectCatScreen.style.display = 'none';
+            mainContent.style.display = 'block';
+            selectCat.value = initialCat;
+            loadTournoi(initialCat);
+        } else {
+            selectCatScreen.style.display = 'block';
+            mainContent.style.display = 'none';
+        }
     </script>
 </body>
 </html>
