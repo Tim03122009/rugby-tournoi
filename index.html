@@ -44,7 +44,7 @@
                 <button id="btnGenerer" class="btn-main">GÉNÉRER LE PLANNING</button>
             </div>
 
-            <p class="hint">La régénération du planning remplace le tournoi en cours.</p>
+            <p class="hint">Chaque catégorie a sa propre configuration (sauvegardée automatiquement). La régénération remplace le planning de cette catégorie.</p>
         </div>
 
         <div id="urlsCard" class="card" style="display:none">
@@ -121,6 +121,9 @@
         }
 
         function switchTab(catId) {
+            if (currentCatId && currentCatId !== catId) {
+                saveConfigToCategory(currentCatId);
+            }
             currentCatId = catId;
             renderTabs();
             loadConfig(catId);
@@ -128,16 +131,27 @@
         }
 
         function loadConfig(catId) {
-            const path = catId ? `tournoi/categories/${catId}/config` : 'tournoi/config';
+            if (!catId) return;
+            const path = `tournoi/categories/${catId}/config`;
             onValue(ref(db, path), (snapshot) => {
+                if (currentCatId !== catId) return;
                 const c = snapshot.val();
-                if (c) {
-                    document.getElementById('terrains').value = c.nbTerrains || 2;
-                    document.getElementById('equipes').value = (c.equipes || []).join('\n');
-                    document.getElementById('arbitres').value = (c.arbitres || []).join('\n');
-                    document.getElementById('dureeMatch').value = c.dureeMatch || '10 min';
-                }
+                document.getElementById('terrains').value = c?.nbTerrains ?? 2;
+                document.getElementById('equipes').value = (c?.equipes && Array.isArray(c.equipes)) ? c.equipes.join('\n') : '';
+                document.getElementById('arbitres').value = (c?.arbitres && Array.isArray(c.arbitres)) ? c.arbitres.join('\n') : '';
+                document.getElementById('dureeMatch').value = c?.dureeMatch ?? '10 min';
             }, { onlyOnce: true });
+        }
+
+        function saveConfigToCategory(catId) {
+            if (!catId) return;
+            const config = {
+                nbTerrains: parseInt(document.getElementById('terrains').value) || 2,
+                equipes: document.getElementById('equipes').value.split('\n').filter(e => e.trim() !== ''),
+                arbitres: document.getElementById('arbitres').value.split('\n').filter(a => a.trim() !== ''),
+                dureeMatch: document.getElementById('dureeMatch').value || '10 min'
+            };
+            set(ref(db, `tournoi/categories/${catId}/config`), config);
         }
 
         function updateUrls() {
